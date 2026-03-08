@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+backend/.venv/
+backend/.venv_wsl/
+backend/.venv_win/
+backend/venv/
+
+# Local env files
+backend/.env
+
+# Local database and backups
+backend/stockbazar.db
+backend/backups/
+
+# OS/editor
+.DS_Store
+Thumbs.db

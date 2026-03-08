@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>REDESTOCK</title>
+  <style>
+    :root {
+      --bg: #f4f1e9;
+      --paper: #fffdf9;
+      --ink: #1f2a2a;
+      --muted: #5d6764;
+      --brand: #0a8058;
+      --brand-dark: #07583e;
+      --line: #e9e3d8;
+      --danger: #a1272d;
+      --ok: #16633f;
+      --warn: #936200;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 20% 0%, #fff2d6 0%, transparent 35%),
+        radial-gradient(circle at 90% 0%, #e2f3e8 0%, transparent 35%),
+        var(--bg);
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 16px; }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .grid { display: grid; gap: 12px; }
+    .two { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
+    .three { grid-template-columns: repeat(3, minmax(240px, 1fr)); }
+    .kpis { grid-template-columns: repeat(7, minmax(130px, 1fr)); }
+    h1, h2, h3 { margin: 0 0 8px; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+    input, select, button, textarea {
+      width: 100%;
+      border: 1px solid #d7d7cf;
+      border-radius: 10px;
+      padding: 9px;
+      font-size: 0.92rem;
+      font-family: inherit;
+      background: #fff;
+    }
+    textarea { min-height: 66px; resize: vertical; }
+    button {
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { background: var(--brand-dark); }
+    .btn-danger { background: var(--danger); }
+    .btn-small { width: auto; padding: 6px 10px; font-size: 0.82rem; }
+    .muted { color: var(--muted); font-size: 0.84rem; }
+    .warn { color: var(--warn); font-weight: 700; }
+    .ok { color: var(--ok); font-weight: 700; }
+    .danger { color: var(--danger); font-weight: 700; }
+    .status { min-height: 22px; padding: 6px 2px; font-size: 0.9rem; }
+    .brand {
+      padding: 14px;
+      border-radius: 14px;
+      color: #fff;
+      background: linear-gradient(140deg, #0d8c61, #07553b);
+    }
+    .brand p { margin: 6px 0 0; opacity: 0.94; }
+    .row2 { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(120px,1fr)); }
+    .row3 { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(120px,1fr)); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      text-align: left;
+      border-bottom: 1px solid #efeadf;
+      padding: 7px;
+      font-size: 0.86rem;
+      vertical-align: top;
+    }
+    th { font-size: 0.74rem; text-transform: uppercase; color: var(--muted); }
+    #appView { display: none; }
+    #authView { display: block; }
+    .hidden { display: none; }
+    .app-shell {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 240px 1fr;
+      align-items: start;
+    }
+    .menu-panel {
+      position: sticky;
+      top: 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100vh - 24px);
+    }
+    .menu-title {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0 0 8px;
+    }
+    .menu-list {
+      display: grid;
+      gap: 8px;
+    }
+    .menu-footer {
+      margin-top: auto;
+    }
+    .menu-divider {
+      margin: 10px 0;
+      border-top: 1px solid var(--line);
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .pager {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      flex-wrap: wrap;
+    }
+    .pager .btn-small[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .auth-shell {
+      max-width: 520px;
+      margin: 42px auto 0;
+    }
+    .auth-card h1 {
+      margin-bottom: 4px;
+    }
+    .auth-toggle {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--line);
+      display: grid;
+      gap: 8px;
+    }
+    .auth-toggle button {
+      background: #e8f2ed;
+      color: #1f2a2a;
+      border: 1px solid #c9dfd4;
+      font-weight: 600;
+    }
+    .auth-toggle button:hover {
+      background: #d7ebe1;
+    }
+    #signupBox {
+      display: none;
+      margin-top: 4px;
+    }
+    #signupBox.open {
+      display: block;
+    }
+    .menu-btn {
+      text-align: left;
+      background: #e8f2ed;
+      color: #1f2a2a;
+      border: 1px solid #c9dfd4;
+      font-weight: 600;
+    }
+    .menu-btn:hover {
+      background: #d7ebe1;
+    }
+    .menu-btn.active {
+      background: var(--brand);
+      color: #fff;
+      border-color: var(--brand);
+    }
+    .view-section { display: none; }
+    .view-section.active { display: block; }
+    .logo-preview { width: 78px; height: 78px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+    .receipt-box {
+      border: 1px solid #d9d3c6;
+      border-radius: 12px;
+      background: #fff;
+      padding: 12px;
+      margin-top: 8px;
+    }
+    .receipt-doc {
+      border: 1px solid #e6dfd1;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .receipt-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px;
+      background: #f8f4ea;
+      border-bottom: 1px solid #e9e2d5;
+    }
+    .receipt-brand {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      min-width: 0;
+    }
+    .receipt-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      border: 1px solid #ddd6c9;
+      border-radius: 8px;
+      background: #fff;
+      flex-shrink: 0;
+    }
+    .receipt-title {
+      font-size: 1rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .receipt-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .receipt-meta {
+      text-align: right;
+      font-size: 0.82rem;
+    }
+    .receipt-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 10px;
+      border-bottom: 1px solid #eee8dd;
+    }
+    .receipt-block {
+      border: 1px solid #eee8dd;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 0.84rem;
+    }
+    .receipt-block strong { display: block; margin-bottom: 4px; }
+    .receipt-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+    .receipt-table th, .receipt-table td {
+      border-bottom: 1px solid #efe9dd;
+      padding: 8px;
+      text-align: left;
+    }
+    .receipt-table th {
+      background: #faf7f0;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .receipt-total {
+      padding: 10px;
+      border-top: 1px solid #efe9dd;
+      display: grid;
+      gap: 4px;
+      justify-items: end;
+      font-size: 0.88rem;
+    }
+    .receipt-total strong { font-size: 1rem; }
+    .receipt-sign {
+      padding: 10px;
+      border-top: 1px dashed #d9d3c6;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: end;
+    }
+    .receipt-sign img {
+      max-height: 60px;
+      object-fit: contain;
+    }
+    @media (max-width: 980px) {
+      .two, .three { grid-template-columns: 1fr; }
+      .kpis { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+      .row2, .row3 { grid-template-columns: 1fr; }
+      .app-shell { grid-template-columns: 1fr; }
+      .menu-panel { position: static; }
+      .menu-list {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="authView">
+      <div class="auth-shell">
+        <div class="card auth-card">
+          <h1>REDESTOCK</h1>
+          <p class="muted">Connecte-toi pour acceder au tableau de bord.</p>
+
+          <h3>Connexion</h3>
+          <label>Email<input id="loginEmail" type="email" placeholder="votre@email.com" /></label>
+          <label>Mot de passe<input id="loginPassword" type="password" placeholder="********" /></label>
+          <button onclick="login()">Se connecter</button>
+
+          <div class="auth-toggle">
+            <p class="muted">Pas encore de compte ?</p>
+            <button type="button" onclick="toggleSignupBox()">Creer un compte</button>
+          </div>
+
+          <div id="signupBox">
+            <h3>Creer un compte boutique</h3>
+            <label>Email<input id="signupEmail" type="email" /></label>
+            <label>Mot de passe (8+)<input id="signupPassword" type="password" /></label>
+            <label>Nom boutique<input id="signupShopName" /></label>
+            <label>Telephone boutique<input id="signupShopPhone" placeholder="+228..." /></label>
+            <label>Adresse boutique<input id="signupShopAddress" placeholder="Lome, quartier..." /></label>
+            <label>Nom caissier<input id="signupCashier" placeholder="Ex: Afi" /></label>
+            <button onclick="signup()">Creer le compte</button>
+          </div>
+        </div>
+        <div id="authStatus" class="status"></div>
+      </div>
+    </div>
+
+    <div id="appView">
+      <div class="app-shell">
+        <aside class="card menu-panel">
+          <p class="menu-title">Menu</p>
+          <div class="menu-list">
+            <button class="menu-btn active" data-view-target="dashboard" onclick="navigateTo('dashboard')">Tableau de bord</button>
+            <button class="menu-btn" data-view-target="products" onclick="navigateTo('products')">Produits</button>
+            <button class="menu-btn" data-view-target="stock" onclick="navigateTo('stock')">Stock</button>
+            <button class="menu-btn" data-view-target="debts" onclick="openDebtCreate()">Ajouter une dette</button>
+            <button class="menu-btn" data-view-target="followups" onclick="navigateTo('followups')">Relances</button>
+            <button class="menu-btn" data-view-target="admin" onclick="navigateTo('admin')">Administration</button>
+          </div>
+          <div class="menu-divider"></div>
+          <div class="menu-list menu-footer">
+            <button class="menu-btn" data-view-target="profile" onclick="navigateTo('profile')">Profil boutique</button>
+            <button class="menu-btn btn-danger" onclick="logout()">Se deconnecter</button>
+          </div>
+        </aside>
+
+        <main>
+          <section class="view-section active" data-view="dashboard">
+            <div class="card brand" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <div>
+                <h1 id="shopTitle">REDESTOCK</h1>
+                <p id="shopSubtitle">Dashboard boutique</p>
+              </div>
+            </div>
+            <div class="grid kpis">
+              <div class="card"><div class="muted">Produits</div><div id="kProducts" style="font-size:1.5rem;font-weight:800">0</div></div>
+              <div class="card"><div class="muted">Dettes</div><div id="kDebts" style="font-size:1.5rem;font-weight:800">0</div></div>
+              <div class="card"><div class="muted">Reste a encaisser</div><div id="kOutstanding" style="font-size:1.5rem;font-weight:800">0</div></div>
+              <div class="card"><div class="muted">Ruptures proches</div><div id="kLowStock" style="font-size:1.5rem;font-weight:800">0</div></div>
+              <div class="card"><div class="muted">Dettes en retard</div><div id="kOverdue" style="font-size:1.5rem;font-weight:800">0</div></div>
+              <div class="card"><div class="muted">Recouvre 7j</div><div id="kCollected7d" style="font-size:1.5rem;font-weight:800">0</div></div>
+              <div class="card"><div class="muted">Recouvre 30j</div><div id="kCollected30d" style="font-size:1.5rem;font-weight:800">0</div></div>
+            </div>
+            <div class="card">
+              <h3>Alertes rupture</h3>
+              <ul id="alerts"></ul>
+            </div>
+          </section>
+
+          <section class="view-section" data-view="products">
+            <div class="grid two">
+              <div class="card">
+                <h3>Ajouter produit</h3>
+                <div class="row3">
+                  <label>Nom<input id="pName" /></label>
+                  <label>SKU<input id="pSku" /></label>
+                  <label>Stock initial<input id="pStock" type="number" min="0" value="0" /></label>
+                </div>
+                <div class="row3" style="margin-top:8px;">
+                  <label>Seuil min<input id="pMin" type="number" min="0" value="5" /></label>
+                  <label>Unite
+                    <select id="pUnit">
+                      <option value="piece">piece</option><option value="kg">kg</option><option value="g">g</option>
+                      <option value="litre">litre</option><option value="ml">ml</option><option value="sachet">sachet</option>
+                      <option value="carton">carton</option><option value="pack">pack</option><option value="boite">boite</option><option value="bouteille">bouteille</option>
+                    </select>
+                  </label>
+                  <label>Prix unitaire FCFA<input id="pPrice" type="number" min="0" value="0" /></label>
+                </div>
+                <button onclick="addProduct()" style="margin-top:8px;">Enregistrer produit</button>
+              </div>
+              <div class="card">
+                <h3 style="display:flex;justify-content:space-between;align-items:center">Produits <button class="btn-small" onclick="loadProducts()">Actualiser</button></h3>
+                <table><thead><tr><th>ID</th><th>Nom</th><th>Stock</th><th>Prix</th><th>Action</th></tr></thead><tbody id="products"></tbody></table>
+              </div>
+            </div>
+          </section>
+
+          <section class="view-section" data-view="stock">
+            <div class="grid two">
+              <div class="card">
+                <h3>Mouvement stock</h3>
+                <div class="row2">
+                  <label>Produit<select id="mProductId"></select></label>
+                  <label>Type<select id="mKind"><option value="in">Entree</option><option value="out">Sortie</option></select></label>
+                  <label>Quantite<input id="mQty" type="number" min="1" value="1" /></label>
+                  <label>Note<input id="mNote" placeholder="Ex: casse 2" /></label>
+                </div>
+                <button onclick="moveStock()" style="margin-top:8px;">Appliquer mouvement</button>
+              </div>
+              <div class="card">
+                <h3 style="display:flex;justify-content:space-between;align-items:center">Mouvements <button class="btn-small" onclick="loadMovements()">Actualiser</button></h3>
+                <table><thead><tr><th>Produit</th><th>Type</th><th>Qte</th><th>Date</th></tr></thead><tbody id="moves"></tbody></table>
+              </div>
+            </div>
+          </section>
+
+          <section class="view-section" data-view="debts">
+            <div class="grid two">
+              <div class="card" id="debtCreateCard">
+                <h3>Ajouter une dette</h3>
+                <div class="row2">
+                  <label>Client<input id="dName" /></label>
+                  <label>Telephone<input id="dPhone" type="tel" /></label>
+                  <label>Produit<select id="dProductId" onchange="updateDebtAmountFromProduct()"><option value="">-- Choisir --</option></select></label>
+                  <label>Quantite<input id="dQty" type="number" min="1" value="1" onchange="updateDebtAmountFromProduct()" /></label>
+                  <label>Montant FCFA (auto)<input id="dTotal" type="number" readonly /></label>
+                  <label>Echeance<input id="dDue" type="date" /></label>
+                </div>
+                <label>Note<textarea id="dNote"></textarea></label>
+                <button onclick="addDebt()">Creer dette</button>
+              </div>
+              <div class="card">
+                <h3>Paiement + Recu</h3>
+                <div class="row2">
+                  <label>ID Dette<input id="payDebtId" type="number" min="1" /></label>
+                  <label>Montant paye FCFA<input id="payAmount" type="number" min="1" /></label>
+                  <label>Mode paiement
+                    <select id="payMethod">
+                      <option value="especes">Especes</option>
+                      <option value="flooz">Flooz</option>
+                      <option value="t_money">T-Money</option>
+                      <option value="virement">Virement</option>
+                    </select>
+                  </label>
+                </div>
+                <label>Note paiement<input id="payNote" /></label>
+                <button onclick="payDebt()">Valider paiement et generer recu</button>
+
+                <div class="receipt-box" id="receiptBox" style="display:none;">
+                  <strong>Dernier recu</strong>
+                  <div id="receiptLines" style="margin-top:8px;"></div>
+                  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                    <button class="btn-small" onclick="printLastReceipt()">Imprimer</button>
+                    <button class="btn-small" onclick="verifyLastReceipt()">Verifier recu</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card" id="debtListCard">
+              <h3 style="display:flex;justify-content:space-between;align-items:center">Voir les dettes
+                <span class="toolbar">
+                  <button class="btn-small" onclick="exportDebtsCsv()">Exporter CSV</button>
+                  <button class="btn-small" onclick="loadDebts()">Actualiser</button>
+                </span>
+              </h3>
+              <div class="row3" style="margin-bottom:8px;">
+                <label>Rechercher client/produit<input id="debtSearch" placeholder="Ex: Kossi, riz..." oninput="onDebtFilterChanged()" /></label>
+                <label>Statut
+                  <select id="debtStatus" onchange="onDebtFilterChanged()">
+                    <option value="all">Toutes</option>
+                    <option value="open">En cours</option>
+                    <option value="overdue">En retard</option>
+                    <option value="settled">Soldees</option>
+                  </select>
+                </label>
+                <label>Trier par
+                  <select id="debtSort" onchange="onDebtFilterChanged()">
+                    <option value="id_desc">Plus recentes</option>
+                    <option value="due_asc">Echeance proche</option>
+                    <option value="amount_desc">Montant restant (desc)</option>
+                    <option value="amount_asc">Montant restant (asc)</option>
+                  </select>
+                </label>
+              </div>
+              <p id="debtsCount" class="muted">0 resultat</p>
+              <div class="pager">
+                <button id="debtsPrev" class="btn-small" onclick="changeDebtsPage(-1)">Precedent</button>
+                <span id="debtsPageInfo" class="muted">Page 1 / 1</span>
+                <button id="debtsNext" class="btn-small" onclick="changeDebtsPage(1)">Suivant</button>
+              </div>
+              <table><thead><tr><th>ID</th><th>Client</th><th>Produit</th><th>Reste</th><th>Etat</th></tr></thead><tbody id="debts"></tbody></table>
+            </div>
+          </section>
+
+          <section class="view-section" data-view="followups">
+            <div class="card">
+              <h3 style="display:flex;justify-content:space-between;align-items:center">Relances clients en retard <button class="btn-small" onclick="loadFollowups()">Actualiser</button></h3>
+              <table>
+                <thead><tr><th>ID</th><th>Client</th><th>Produit</th><th>Reste</th><th>Echeance</th><th>Emetteur</th><th>Action</th></tr></thead>
+                <tbody id="followups"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="view-section" data-view="profile">
+            <div class="card">
+              <h3>Identite boutique (logo + signature)</h3>
+              <div class="row2">
+                <label>Nom boutique<input id="profileShopName" /></label>
+                <label>Telephone<input id="profileShopPhone" /></label>
+                <label>Adresse<input id="profileShopAddress" /></label>
+                <label>Caissier<input id="profileCashier" /></label>
+                <label>Logo (png/jpg/webp/svg)<input id="profileLogo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
+                <label>Signature (png/jpg/webp/svg)<input id="profileSignature" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" /></label>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+                <button onclick="saveProfile()">Enregistrer profil</button>
+                <img id="logoPreview" class="logo-preview" alt="logo" />
+                <img id="signaturePreview" class="logo-preview" alt="signature" />
+              </div>
+            </div>
+          </section>
+
+          <section class="view-section" data-view="admin">
+            <div class="card">
+              <h3>Administration</h3>
+              <p class="muted">Efface uniquement les donnees de ta boutique connectee.</p>
+              <button class="btn-danger" onclick="resetAllData()">Effacer toutes les donnees</button>
+            </div>
+          </section>
+
+          <div id="appStatus" class="status"></div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('redestock_token') || '';
+let productsCache = [];
+let debtsCache = [];
+let lastReceipt = null;
+let me = null;
+let debtsPage = 1;
+const DEBTS_PAGE_SIZE = 10;
+const LAST_VIEW_KEY = 'redestock_last_view';
+const KNOWN_VIEWS = new Set(['dashboard', 'products', 'stock', 'debts', 'followups', 'profile', 'admin']);
+
+function money(n) { return Number(n || 0).toLocaleString('fr-FR'); }
+
+function setAuthStatus(msg, isErr=false){
+  const el = document.getElementById('authStatus');
+  el.textContent = msg;
+  el.className = `status ${isErr ? 'danger' : 'ok'}`;
+}
+function setAppStatus(msg, isErr=false){
+  const el = document.getElementById('appStatus');
+  el.textContent = msg;
+  el.className = `status ${isErr ? 'danger' : 'ok'}`;
+}
+
+function isEmail(v){
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim());
+}
+
+function parseIntSafe(v, fallback = 0){
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.trunc(n) : fallback;
+}
+
+async function req(path, options = {}, auth = false) {
+  const headers = { ...(options.headers || {}) };
+  if (!options.bodyIsForm) headers['Content-Type'] = 'application/json';
+  if (auth) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API}${path}`, { ...options, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+  return data;
+}
+
+function showAuth() {
+  document.getElementById('authView').style.display = 'block';
+  document.getElementById('appView').style.display = 'none';
+  toggleSignupBox(false);
+}
+function showApp() {
+  document.getElementById('authView').style.display = 'none';
+  document.getElementById('appView').style.display = 'block';
+}
+
+function toggleSignupBox(forceOpen = null){
+  const box = document.getElementById('signupBox');
+  if (!box) return;
+  const shouldOpen = forceOpen === null ? !box.classList.contains('open') : Boolean(forceOpen);
+  box.classList.toggle('open', shouldOpen);
+}
+
+function normalizeView(view){
+  return KNOWN_VIEWS.has(view) ? view : 'dashboard';
+}
+
+function navigateTo(view){
+  const safeView = normalizeView(view);
+  document.querySelectorAll('.view-section').forEach(section => {
+    section.classList.toggle('active', section.dataset.view === safeView);
+  });
+  document.querySelectorAll('.menu-btn[data-view-target]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.viewTarget === safeView);
+  });
+  localStorage.setItem(LAST_VIEW_KEY, safeView);
+}
+
+function openDebtCreate(){
+  navigateTo('debts');
+  document.getElementById('debtCreateCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function signup(){
+  try {
+    toggleSignupBox(true);
+    const payload = {
+      email: document.getElementById('signupEmail').value.trim(),
+      password: document.getElementById('signupPassword').value,
+      shop_name: document.getElementById('signupShopName').value.trim(),
+      shop_phone: document.getElementById('signupShopPhone').value.trim(),
+      shop_address: document.getElementById('signupShopAddress').value.trim(),
+      cashier_name: document.getElementById('signupCashier').value.trim() || 'Caissier',
+    };
+    if (!isEmail(payload.email)) { setAuthStatus('Email invalide.', true); return; }
+    if (!payload.password || payload.password.length < 8) { setAuthStatus('Mot de passe: 8 caracteres minimum.', true); return; }
+    if (!payload.shop_name || payload.shop_name.length < 2) { setAuthStatus('Nom boutique obligatoire (2 caracteres min).', true); return; }
+    const out = await req('/api/auth/signup', { method:'POST', body: JSON.stringify(payload) });
+    token = out.access_token;
+    localStorage.setItem('redestock_token', token);
+    await bootstrapApp('dashboard');
+  } catch (e) { setAuthStatus(`Erreur inscription: ${e.message}`, true); }
+}
+
+async function login(){
+  try {
+    const payload = {
+      email: document.getElementById('loginEmail').value.trim(),
+      password: document.getElementById('loginPassword').value,
+    };
+    if (!isEmail(payload.email)) { setAuthStatus('Email invalide.', true); return; }
+    if (!payload.password) { setAuthStatus('Mot de passe obligatoire.', true); return; }
+    const out = await req('/api/auth/login', { method:'POST', body: JSON.stringify(payload) });
+    token = out.access_token;
+    localStorage.setItem('redestock_token', token);
+    await bootstrapApp('dashboard');
+  } catch (e) { setAuthStatus(`Erreur connexion: ${e.message}`, true); }
+}
+
+function logout(){
+  token = '';
+  me = null;
+  localStorage.removeItem('redestock_token');
+  showAuth();
+  setAuthStatus('Session fermee.');
+}
+
+async function bootstrapApp(preferredView = ''){
+  try {
+    me = await req('/api/auth/me', {}, true);
+    showApp();
+    const targetView = normalizeView(preferredView || localStorage.getItem(LAST_VIEW_KEY) || 'dashboard');
+    navigateTo(targetView);
+    document.getElementById('shopTitle').textContent = me.shop_name || 'REDESTOCK';
+    document.getElementById('shopSubtitle').textContent = `${me.email}`;
+
+    document.getElementById('profileShopName').value = me.shop_name || '';
+    document.getElementById('profileShopPhone').value = me.shop_phone || '';
+    document.getElementById('profileShopAddress').value = me.shop_address || '';
+    document.getElementById('profileCashier').value = me.cashier_name || 'Caissier';
+    document.getElementById('logoPreview').src = me.logo_url || '';
+    document.getElementById('signaturePreview').src = me.signature_url || '';
+
+    await loadAll();
+  } catch (e) {
+    token = '';
+    localStorage.removeItem('redestock_token');
+    showAuth();
+    setAuthStatus('Reconnecte-toi pour acceder au site.', true);
+  }
+}
+
+async function saveProfile(){
+  try {
+    const shopName = document.getElementById('profileShopName').value.trim();
+    if (!shopName) { setAppStatus('Nom boutique obligatoire.', true); return; }
+    const form = new FormData();
+    form.append('shop_name', shopName);
+    form.append('shop_phone', document.getElementById('profileShopPhone').value.trim());
+    form.append('shop_address', document.getElementById('profileShopAddress').value.trim());
+    form.append('cashier_name', document.getElementById('profileCashier').value.trim());
+
+    const logo = document.getElementById('profileLogo').files[0];
+    const sign = document.getElementById('profileSignature').files[0];
+    if (logo) form.append('logo', logo);
+    if (sign) form.append('signature', sign);
+
+    const out = await req('/api/shop/profile', {
+      method: 'PUT',
+      body: form,
+      bodyIsForm: true,
+      headers: { 'Authorization': `Bearer ${token}` },
+    }, false);
+
+    me = { ...me, ...out };
+    document.getElementById('shopTitle').textContent = me.shop_name || 'REDESTOCK';
+    document.getElementById('logoPreview').src = me.logo_url || '';
+    document.getElementById('signaturePreview').src = me.signature_url || '';
+    setAppStatus('Profil boutique mis a jour.');
+  } catch (e) { setAppStatus(`Erreur profil: ${e.message}`, true); }
+}
+
+async function refreshSummary(){
+  const data = await req('/api/summary', {}, true);
+  document.getElementById('kProducts').textContent = data.products;
+  document.getElementById('kDebts').textContent = data.debts;
+  document.getElementById('kOutstanding').textContent = money(data.outstanding_amount);
+  document.getElementById('kLowStock').textContent = data.low_stock_count;
+  document.getElementById('kOverdue').textContent = data.overdue_debts;
+  document.getElementById('kCollected7d').textContent = money(data.collected_7d || 0);
+  document.getElementById('kCollected30d').textContent = money(data.collected_30d || 0);
+}
+
+async function addProduct(){
+  try {
+    const name = document.getElementById('pName').value.trim();
+    const sku = document.getElementById('pSku').value.trim();
+    const stockQty = parseIntSafe(document.getElementById('pStock').value, -1);
+    const minQty = parseIntSafe(document.getElementById('pMin').value, -1);
+    const salePrice = parseIntSafe(document.getElementById('pPrice').value, -1);
+    if (!name || name.length < 2) { setAppStatus('Nom produit obligatoire (2 caracteres min).', true); return; }
+    if (!sku || sku.length < 2) { setAppStatus('SKU obligatoire (2 caracteres min).', true); return; }
+    if (stockQty < 0 || minQty < 0 || salePrice < 0) { setAppStatus('Stock, seuil et prix doivent etre >= 0.', true); return; }
+    await req('/api/products', {
+      method:'POST',
+      body: JSON.stringify({
+        name,
+        sku,
+        stock_qty: stockQty,
+        min_qty: minQty,
+        unit: document.getElementById('pUnit').value,
+        sale_price: salePrice,
+      }),
+    }, true);
+    setAppStatus('Produit enregistre.');
+    await loadAll();
+  } catch (e) { setAppStatus(`Erreur produit: ${e.message}`, true); }
+}
+
+async function deleteProduct(id, name){
+  if (!confirm(`Supprimer le produit "${name}" ?`)) return;
+  try {
+    await req(`/api/products/${id}`, { method: 'DELETE' }, true);
+    setAppStatus('Produit supprime.');
+    await loadAll();
+  } catch (e) { setAppStatus(`Erreur suppression: ${e.message}`, true); }
+}
+
+async function moveStock(){
+  try {
+    const productId = parseIntSafe(document.getElementById('mProductId').value, 0);
+    const qty = parseIntSafe(document.getElementById('mQty').value, 0);
+    if (!productId) { setAppStatus('Choisis un produit.', true); return; }
+    if (qty < 1) { setAppStatus('Quantite invalide (>= 1).', true); return; }
+    await req('/api/stock/move', {
+      method:'POST',
+      body: JSON.stringify({
+        product_id: productId,
+        kind: document.getElementById('mKind').value,
+        qty,
+        note: document.getElementById('mNote').value.trim(),
+      }),
+    }, true);
+    setAppStatus('Mouvement enregistre.');
+    await loadAll();
+  } catch (e) { setAppStatus(`Erreur mouvement: ${e.message}`, true); }
+}
+
+function updateDebtAmountFromProduct(){
+  const selected = Number(document.getElementById('dProductId').value);
+  const qty = Number(document.getElementById('dQty').value) || 1;
+  const p = productsCache.find(x => Number(x.id) === selected);
+  document.getElementById('dTotal').value = p ? Number(p.sale_price) * qty : '';
+}
+
+async function addDebt(){
+  try {
+    const customerName = document.getElementById('dName').value.trim();
+    const productId = parseIntSafe(document.getElementById('dProductId').value, 0);
+    const quantity = parseIntSafe(document.getElementById('dQty').value, 0);
+    const dueDate = document.getElementById('dDue').value;
+    if (!customerName || customerName.length < 2) { setAppStatus('Nom client obligatoire (2 caracteres min).', true); return; }
+    if (!productId) { setAppStatus('Choisis un produit.', true); return; }
+    if (quantity < 1) { setAppStatus('Quantite invalide (>= 1).', true); return; }
+    if (dueDate && Number.isNaN(Date.parse(`${dueDate}T00:00:00`))) { setAppStatus('Date echeance invalide.', true); return; }
+    await req('/api/debts', {
+      method:'POST',
+      body: JSON.stringify({
+        customer_name: customerName,
+        phone: document.getElementById('dPhone').value.trim(),
+        product_id: productId,
+        quantity,
+        due_date: dueDate,
+        note: document.getElementById('dNote').value.trim(),
+      }),
+    }, true);
+    setAppStatus('Dette creee.');
+    await loadAll();
+  } catch (e) { setAppStatus(`Erreur dette: ${e.message}`, true); }
+}
+
+async function payDebt(){
+  try {
+    const debtId = parseIntSafe(document.getElementById('payDebtId').value, 0);
+    const amount = parseIntSafe(document.getElementById('payAmount').value, 0);
+    if (!debtId) { setAppStatus('ID dette invalide.', true); return; }
+    if (amount < 1) { setAppStatus('Montant paye invalide (>= 1).', true); return; }
+    const out = await req(`/api/debts/${debtId}/pay`, {
+      method:'POST',
+      body: JSON.stringify({
+        amount,
+        method: document.getElementById('payMethod').value,
+        note: document.getElementById('payNote').value.trim(),
+      }),
+    }, true);
+    const receipt = await req(`/api/receipts/payments/${out.payment_log_id}`, {}, true);
+    renderReceipt(receipt);
+    setAppStatus(`Paiement enregistre. Recu ${out.receipt_number}.`);
+    await loadAll();
+  } catch (e) { setAppStatus(`Erreur paiement: ${e.message}`, true); }
+}
+
+function absoluteUrl(u){
+  if (!u) return '';
+  if (u.startsWith('http://') || u.startsWith('https://')) return u;
+  if (u.startsWith('/')) return `${window.location.origin}${u}`;
+  return `${window.location.origin}/${u}`;
+}
+
+function renderReceipt(r){
+  lastReceipt = r;
+  const lines = document.getElementById('receiptLines');
+  document.getElementById('receiptBox').style.display = 'block';
+  lines.innerHTML = receiptMarkup(r);
+}
+
+function printLastReceipt(){
+  if (!lastReceipt) { setAppStatus('Aucun recu.', true); return; }
+  const w = window.open('', '_blank');
+  if (!w) { setAppStatus('Popup bloquee.', true); return; }
+  const css = `
+    body{font-family:Arial,sans-serif;padding:16px;color:#1f2a2a}
+    .receipt-doc{border:1px solid #d9d3c6;border-radius:10px;overflow:hidden}
+    .receipt-head{display:flex;justify-content:space-between;gap:10px;padding:10px;background:#f8f4ea;border-bottom:1px solid #e9e2d5}
+    .receipt-brand{display:flex;gap:10px;align-items:center}
+    .receipt-logo{width:56px;height:56px;object-fit:contain;border:1px solid #ddd6c9;border-radius:8px;background:#fff}
+    .receipt-title{font-size:1rem;font-weight:800;line-height:1.2}
+    .receipt-sub{font-size:.8rem;color:#5d6764;margin-top:2px}
+    .receipt-meta{text-align:right;font-size:.82rem}
+    .receipt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border-bottom:1px solid #eee8dd}
+    .receipt-block{border:1px solid #eee8dd;border-radius:8px;padding:8px;font-size:.84rem}
+    .receipt-block strong{display:block;margin-bottom:4px}
+    .receipt-table{width:100%;border-collapse:collapse;font-size:.84rem}
+    .receipt-table th,.receipt-table td{border-bottom:1px solid #efe9dd;padding:8px;text-align:left}
+    .receipt-table th{background:#faf7f0;font-size:.74rem;text-transform:uppercase;color:#5d6764}
+    .receipt-total{padding:10px;border-top:1px solid #efe9dd;display:grid;gap:4px;justify-items:end;font-size:.88rem}
+    .receipt-total strong{font-size:1rem}
+    .receipt-sign{padding:10px;border-top:1px dashed #d9d3c6;display:flex;justify-content:space-between;gap:10px;align-items:end}
+    .receipt-sign img{max-height:60px;object-fit:contain}
+  `;
+  w.document.write(`
+    <html><head><title>Recu ${lastReceipt.receipt_number}</title>
+    <style>${css}</style>
+    </head><body>
+    ${receiptMarkup(lastReceipt)}
+    </body></html>
+  `);
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+function receiptMarkup(r){
+  const logo = r.shop_logo_url ? `<img class="receipt-logo" src="${absoluteUrl(r.shop_logo_url)}" alt="logo">` : '';
+  const sign = r.shop_signature_url ? `<img src="${absoluteUrl(r.shop_signature_url)}" alt="signature">` : '<span class="muted">Signature non renseignee</span>';
+  const issued = new Date(r.issued_at).toLocaleString('fr-FR');
+  const productLabel = `${r.product_name || '-'} x${r.quantity || 1}`;
+  return `
+    <div class="receipt-doc">
+      <div class="receipt-head">
+        <div class="receipt-brand">
+          ${logo}
+          <div>
+            <div class="receipt-title">${r.shop_name || 'REDESTOCK'}</div>
+            <div class="receipt-sub">${r.shop_address || '-'}</div>
+            <div class="receipt-sub">${r.shop_phone || '-'}</div>
+          </div>
+        </div>
+        <div class="receipt-meta">
+          <div><strong>RECU DE PAIEMENT</strong></div>
+          <div>N° ${r.receipt_number}</div>
+          <div>${issued}</div>
+        </div>
+      </div>
+      <div class="receipt-grid">
+        <div class="receipt-block">
+          <strong>Client</strong>
+          <div>${r.customer_name || '-'}</div>
+          <div>${r.customer_phone || '-'}</div>
+        </div>
+        <div class="receipt-block">
+          <strong>Operation</strong>
+          <div>Mode: ${r.payment_method_label || r.payment_method || '-'}</div>
+          <div>Caissier: ${r.cashier_name || '-'}</div>
+        </div>
+      </div>
+      <table class="receipt-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Prix unitaire</th>
+            <th>Quantite</th>
+            <th>Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${productLabel}</td>
+            <td>${money(r.unit_price)} FCFA</td>
+            <td>${r.quantity || 1}</td>
+            <td>${money(r.debt_total)} FCFA</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="receipt-total">
+        <div>Montant paye: <strong>${money(r.payment_amount)} FCFA</strong></div>
+        <div>Solde restant: <strong>${money(r.debt_due_after_payment)} FCFA</strong></div>
+      </div>
+      <div class="receipt-sign">
+        <div>
+          <div class="muted">Signature boutique</div>
+          ${sign}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function verifyLastReceipt(){
+  if (!lastReceipt?.receipt_number) { setAppStatus('Aucun recu a verifier.', true); return; }
+  try {
+    const out = await req(`/api/receipts/verify/${encodeURIComponent(lastReceipt.receipt_number)}`, {}, true);
+    if (out.valid) setAppStatus(`Recu valide: ${out.receipt_number}`);
+    else setAppStatus(`Recu invalide: ${out.receipt_number}`, true);
+  } catch (e) { setAppStatus(`Erreur verification: ${e.message}`, true); }
+}
+
+async function loadAlerts(){
+  const data = await req('/api/alerts/low-stock', {}, true);
+  const ul = document.getElementById('alerts');
+  ul.innerHTML = '';
+  if (!data.items.length) { ul.innerHTML = '<li>Aucune alerte.</li>'; return; }
+  data.items.forEach(i => {
+    const li = document.createElement('li');
+    li.className = 'warn';
+    li.textContent = `${i.name} (${i.sku}) stock ${i.stock_qty} / min ${i.min_qty}`;
+    ul.appendChild(li);
+  });
+}
+
+async function loadProducts(){
+  const data = await req('/api/products', {}, true);
+  productsCache = data;
+  const tbody = document.getElementById('products');
+  const mSel = document.getElementById('mProductId');
+  const dSel = document.getElementById('dProductId');
+  tbody.innerHTML = '';
+  mSel.innerHTML = '';
+  dSel.innerHTML = '<option value="">-- Choisir --</option>';
+
+  data.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${p.id}</td><td>${p.name}<br><span class="muted">${p.sku}</span></td><td class="${p.is_low_stock ? 'warn' : ''}">${p.stock_qty}</td><td>${money(p.sale_price)}</td><td></td>`;
+    const cell = tr.lastElementChild;
+    const btn = document.createElement('button');
+    btn.className = 'btn-small';
+    btn.textContent = 'Supprimer';
+    btn.onclick = () => deleteProduct(p.id, p.name);
+    cell.appendChild(btn);
+    tbody.appendChild(tr);
+
+    const o1 = document.createElement('option');
+    o1.value = p.id;
+    o1.textContent = `#${p.id} - ${p.name} (stock ${p.stock_qty})`;
+    mSel.appendChild(o1);
+
+    const o2 = document.createElement('option');
+    o2.value = p.id;
+    o2.textContent = `${p.name} - ${money(p.sale_price)} FCFA`;
+    dSel.appendChild(o2);
+  });
+  updateDebtAmountFromProduct();
+}
+
+async function loadDebts(){
+  const data = await req('/api/debts', {}, true);
+  debtsCache = data;
+  debtsPage = 1;
+  applyDebtFilters();
+}
+
+function onDebtFilterChanged(){
+  debtsPage = 1;
+  applyDebtFilters();
+}
+
+function dueDateScore(dueDate){
+  if (!dueDate) return Number.MAX_SAFE_INTEGER;
+  const t = Date.parse(`${dueDate}T00:00:00`);
+  return Number.isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
+}
+
+function changeDebtsPage(delta){
+  debtsPage += delta;
+  applyDebtFilters();
+}
+
+async function exportDebtsCsv(){
+  try {
+    const q = (document.getElementById('debtSearch')?.value || '').trim();
+    const status = document.getElementById('debtStatus')?.value || 'all';
+    const url = new URL('/api/debts/export.csv', window.location.origin);
+    url.searchParams.set('status', status);
+    if (q) url.searchParams.set('q', q);
+
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const data = await res.json();
+        detail = data.detail || detail;
+      } catch {}
+      throw new Error(detail);
+    }
+
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    const objUrl = URL.createObjectURL(blob);
+    a.href = objUrl;
+    a.download = `dettes_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objUrl);
+    setAppStatus('Export CSV termine.');
+  } catch (e) {
+    setAppStatus(`Erreur export CSV: ${e.message}`, true);
+  }
+}
+
+function applyDebtFilters(){
+  const tbody = document.getElementById('debts');
+  if (!tbody) return;
+  const q = (document.getElementById('debtSearch')?.value || '').trim().toLowerCase();
+  const status = document.getElementById('debtStatus')?.value || 'all';
+  const sort = document.getElementById('debtSort')?.value || 'id_desc';
+
+  let rows = [...debtsCache];
+
+  if (q) {
+    rows = rows.filter(d =>
+      String(d.customer_name || '').toLowerCase().includes(q)
+      || String(d.product_name || '').toLowerCase().includes(q)
+      || String(d.id).includes(q)
+    );
+  }
+
+  if (status === 'open') rows = rows.filter(d => !d.is_settled && !d.is_overdue);
+  if (status === 'overdue') rows = rows.filter(d => d.is_overdue && !d.is_settled);
+  if (status === 'settled') rows = rows.filter(d => d.is_settled);
+
+  rows.sort((a, b) => {
+    if (sort === 'due_asc') return dueDateScore(a.due_date) - dueDateScore(b.due_date);
+    if (sort === 'amount_desc') return Number(b.amount_due || 0) - Number(a.amount_due || 0);
+    if (sort === 'amount_asc') return Number(a.amount_due || 0) - Number(b.amount_due || 0);
+    return Number(b.id || 0) - Number(a.id || 0);
+  });
+
+  const total = rows.length;
+  const maxPage = Math.max(1, Math.ceil(total / DEBTS_PAGE_SIZE));
+  if (debtsPage < 1) debtsPage = 1;
+  if (debtsPage > maxPage) debtsPage = maxPage;
+  const start = (debtsPage - 1) * DEBTS_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + DEBTS_PAGE_SIZE);
+
+  tbody.innerHTML = '';
+  if (!pageRows.length) {
+    tbody.innerHTML = '<tr><td colspan="5">Aucune dette pour ce filtre.</td></tr>';
+  }
+
+  pageRows.forEach(d => {
+    const state = d.is_settled ? 'Solde' : (d.is_overdue ? 'En retard' : 'En cours');
+    const cls = d.is_settled ? 'ok' : (d.is_overdue ? 'danger' : '');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${d.id}</td><td>${d.customer_name}</td><td>${d.product_name} x${d.quantity}<br><span class="muted">Echeance: ${d.due_date || '-'}</span></td><td>${money(d.amount_due)}</td><td class="${cls}">${state}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const count = document.getElementById('debtsCount');
+  if (count) {
+    const suffix = total > 1 ? 's' : '';
+    count.textContent = `${total} resultat${suffix}`;
+  }
+  const pageInfo = document.getElementById('debtsPageInfo');
+  if (pageInfo) pageInfo.textContent = `Page ${debtsPage} / ${maxPage}`;
+  const prevBtn = document.getElementById('debtsPrev');
+  const nextBtn = document.getElementById('debtsNext');
+  if (prevBtn) prevBtn.disabled = debtsPage <= 1;
+  if (nextBtn) nextBtn.disabled = debtsPage >= maxPage;
+}
+
+async function loadMovements(){
+  const data = await req('/api/stock/movements?limit=12', {}, true);
+  const tbody = document.getElementById('moves');
+  tbody.innerHTML = '';
+  data.forEach(m => {
+    const tr = document.createElement('tr');
+    const sign = m.kind === 'in' ? '+' : '-';
+    tr.innerHTML = `<td>${m.product_name}</td><td>${m.kind}</td><td>${sign}${m.qty}</td><td>${new Date(m.created_at).toLocaleString('fr-FR')}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function loadFollowups(){
+  const data = await req('/api/debts/followups?status=overdue&limit=30', {}, true);
+  const tbody = document.getElementById('followups');
+  tbody.innerHTML = '';
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="7">Aucune relance.</td></tr>';
+    return;
+  }
+  data.forEach(f => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${f.id}</td><td>${f.customer_name}<br><span class="muted">${f.phone || '-'}</span></td><td>${f.product_name || '-'}</td><td>${money(f.amount_due)}</td><td>${f.due_date || '-'}</td><td><span class="muted">${f.shop_name || ''}</span><br>${f.sender_phone || '-'}</td><td></td>`;
+    const cell = tr.lastElementChild;
+    if (f.whatsapp_link) {
+      const a = document.createElement('a');
+      a.href = f.whatsapp_link;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.className = 'btn-small';
+      a.style.display = 'inline-block';
+      a.style.textDecoration = 'none';
+      a.textContent = 'Relancer WhatsApp';
+      cell.appendChild(a);
+    } else {
+      cell.textContent = 'Pas de numero';
+    }
+    tbody.appendChild(tr);
+  });
+}
+
+async function resetAllData(){
+  const c = prompt('Tape RESET pour confirmer:');
+  if (c !== 'RESET') { setAppStatus('Effacement annule.'); return; }
+  try {
+    await req('/api/admin/reset-data?confirm=RESET', { method:'POST' }, true);
+    setAppStatus('Donnees boutique effacees.');
+    document.getElementById('receiptBox').style.display = 'none';
+    await loadAll();
+  } catch (e) { setAppStatus(`Erreur reset: ${e.message}`, true); }
+}
+
+async function loadAll(){
+  await Promise.all([
+    refreshSummary(),
+    loadProducts(),
+    loadDebts(),
+    loadAlerts(),
+    loadFollowups(),
+    loadMovements(),
+  ]);
+}
+
+if (token) bootstrapApp();
+else showAuth();
+</script>
+</body>
+</html>

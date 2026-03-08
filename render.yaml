@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: stockbazar
+    runtime: python
+    plan: free
+    rootDir: .
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:////var/data/stockbazar.db
+      - key: UPLOADS_DIR
+        value: /var/data/uploads
+      - key: FRONTEND_FILE
+        value: backend/index.html
+      - key: AUTO_CREATE_SCHEMA
+        value: "true"
+      - key: LOW_STOCK_DEFAULT
+        value: "5"
+      - key: TOKEN_TTL_HOURS
+        value: "24"
+      - key: MAX_UPLOAD_MB
+        value: "4"
+      - key: CORS_ALLOW_ORIGINS
+        value: "*"
+      - key: AUTH_SECRET
+        generateValue: true
+    disk:
+      name: stockbazar-data
+      mountPath: /var/data
+      sizeGB: 1
