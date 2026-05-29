@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Index, Integer, String
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.config import LOW_STOCK_DEFAULT
@@ -20,8 +20,8 @@ class ShopAccount(Base):
     shop_phone: Mapped[str] = mapped_column(String(40), nullable=False, default="")
     shop_address: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     cashier_name: Mapped[str] = mapped_column(String(120), nullable=False, default="Caissier")
-    logo_url: Mapped[str] = mapped_column(String(255), nullable=False, default="")
-    signature_url: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    logo_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    signature_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 

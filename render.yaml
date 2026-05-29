@@ -2,7 +2,7 @@ services:
   - type: web
     name: stockbazar
     runtime: python
-    plan: starter
+    plan: free
     rootDir: .
     healthCheckPath: /api/health
     buildCommand: pip install -r backend/requirements.txt
@@ -11,9 +11,9 @@ services:
       - key: APP_ENV
         value: production
       - key: DATABASE_URL
-        value: sqlite:////var/data/stockbazar.db
-      - key: UPLOADS_DIR
-        value: /var/data/uploads
+        fromDatabase:
+          name: stockbazar-db
+          property: connectionString
       - key: FRONTEND_FILE
         value: backend/index.html
       - key: AUTO_CREATE_SCHEMA
@@ -30,7 +30,8 @@ services:
         value: "false"
       - key: AUTH_SECRET
         generateValue: true
-    disk:
-      name: stockbazar-data
-      mountPath: /var/data
-      sizeGB: 1
+
+databases:
+  - name: stockbazar-db
+    databaseName: stockbazar
+    plan: free

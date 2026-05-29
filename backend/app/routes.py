@@ -4,14 +4,12 @@ import csv
 import io
 import re
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from typing import Literal
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
@@ -23,7 +21,6 @@ from app.config import (
     FRONTEND_FILE,
     SENSITIVE_STOCK_OUT_QTY,
     TOKEN_TTL_HOURS,
-    UPLOADS_DIR,
 )
 from app.database import engine
 from app.models import CustomerDebt, DebtPaymentLog, Product, ShopAccount, ShopNotification, ShopUser, StockMovement
@@ -61,7 +58,6 @@ from app.utils import build_receipt_number, normalize_method, normalize_phone, p
 bootstrap_app()
 
 app = FastAPI(title="REDESTOCK API", version="0.4.0")
-app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
 def _notify(

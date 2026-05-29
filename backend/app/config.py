@@ -21,7 +21,6 @@ MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "4"))
 ENABLE_ADMIN_RESET = os.getenv("ENABLE_ADMIN_RESET", "false").lower() == "true"
 SENSITIVE_APPROVAL_TTL_MINUTES = int(os.getenv("SENSITIVE_APPROVAL_TTL_MINUTES", "10"))
 SENSITIVE_STOCK_OUT_QTY = int(os.getenv("SENSITIVE_STOCK_OUT_QTY", "10"))
-UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", str(APP_ROOT / "uploads"))).resolve()
 
 
 def validate_runtime_config() -> None:

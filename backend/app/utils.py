@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import base64
 import re
-import uuid
 from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 
-from app.config import MAX_UPLOAD_MB, UPLOADS_DIR
+from app.config import MAX_UPLOAD_MB
 
 
 def parse_due_date(value: str) -> str:
@@ -44,14 +44,19 @@ def normalize_phone(raw_phone: str) -> str:
 
 def save_upload(file: UploadFile, prefix: str, shop_id: int) -> str:
     ext = Path(file.filename or "").suffix.lower()
-    if ext not in {".png", ".jpg", ".jpeg", ".webp"}:
+    mime_types = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+    }
+    if ext not in mime_types:
         raise HTTPException(status_code=422, detail="Format image non supporte")
 
     raw = file.file.read()
     if len(raw) > MAX_UPLOAD_MB * 1024 * 1024:
         raise HTTPException(status_code=422, detail=f"Image trop volumineuse (max {MAX_UPLOAD_MB} MB)")
 
-    filename = f"shop_{shop_id}_{prefix}_{uuid.uuid4().hex}{ext}"
-    path = UPLOADS_DIR / filename
-    path.write_bytes(raw)
-    return f"/uploads/{filename}"
+    encoded = base64.b64encode(raw).decode("ascii")
+    return f"data:{mime_types[ext]};base64,{encoded}"

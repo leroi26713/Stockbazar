@@ -1087,6 +1087,7 @@ async function payDebt(){
 
 function absoluteUrl(u){
   if (!u) return '';
+  if (u.startsWith('data:')) return u;
   if (u.startsWith('http://') || u.startsWith('https://')) return u;
   if (u.startsWith('/')) return `${window.location.origin}${u}`;
   return `${window.location.origin}/${u}`;

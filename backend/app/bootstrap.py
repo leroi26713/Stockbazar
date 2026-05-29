@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.config import AUTO_CREATE_SCHEMA, DATABASE_URL, UPLOADS_DIR
+from app.config import AUTO_CREATE_SCHEMA, DATABASE_URL
 from app.database import Base, engine
 from app.models import CustomerDebt
 
@@ -98,7 +98,6 @@ def normalize_legacy_debts() -> None:
 def bootstrap_app() -> None:
     if AUTO_CREATE_SCHEMA:
         Base.metadata.create_all(engine)
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     ensure_sqlite_columns()
     ensure_sqlite_indexes()
     normalize_legacy_debts()
