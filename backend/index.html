@@ -284,6 +284,48 @@
       max-height: 60px;
       object-fit: contain;
     }
+    .notif-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 7px;
+      border-radius: 999px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      margin-left: 6px;
+    }
+    .notification-list {
+      display: grid;
+      gap: 10px;
+    }
+    .notification-item {
+      border: 1px solid #e7decf;
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      display: grid;
+      gap: 5px;
+    }
+    .notification-item.unread {
+      border-color: #d89d35;
+      background: #fffaf0;
+    }
+    .notification-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+    .notification-title {
+      font-weight: 800;
+    }
+    .severity-warning { color: #9a5a00; }
+    .severity-danger { color: var(--danger); }
     @media (max-width: 980px) {
       .two, .three { grid-template-columns: 1fr; }
       .kpis { grid-template-columns: repeat(2, minmax(130px, 1fr)); }
@@ -308,6 +350,14 @@
           <label>Email<input id="loginEmail" type="email" placeholder="votre@email.com" /></label>
           <label>Mot de passe<input id="loginPassword" type="password" placeholder="********" /></label>
           <button onclick="login()">Se connecter</button>
+
+          <div class="auth-toggle">
+            <p class="muted">Connexion employe interne</p>
+          </div>
+          <label>Email boutique<input id="staffShopEmail" type="email" placeholder="boutique@email.com" /></label>
+          <label>Login employe<input id="staffLogin" placeholder="caissier1" /></label>
+          <label>Mot de passe employe<input id="staffPassword" type="password" placeholder="****" /></label>
+          <button type="button" onclick="staffLogin()">Se connecter comme employe</button>
 
           <div class="auth-toggle">
             <p class="muted">Pas encore de compte ?</p>
@@ -336,14 +386,17 @@
           <div class="menu-list">
             <button class="menu-btn active" data-view-target="dashboard" onclick="navigateTo('dashboard')">Tableau de bord</button>
             <button class="menu-btn" data-view-target="products" onclick="navigateTo('products')">Produits</button>
-            <button class="menu-btn" data-view-target="stock" onclick="navigateTo('stock')">Stock</button>
+            <button class="menu-btn" data-view-target="stock" onclick="navigateTo('stock')" data-role-min="admin">Stock</button>
             <button class="menu-btn" data-view-target="debts" onclick="openDebtCreate()">Ajouter une dette</button>
             <button class="menu-btn" data-view-target="followups" onclick="navigateTo('followups')">Relances</button>
-            <button class="menu-btn" data-view-target="admin" onclick="navigateTo('admin')">Administration</button>
+            <button class="menu-btn" data-view-target="notifications" onclick="navigateTo('notifications')" data-role-min="admin">
+              Notifications <span id="notificationBadge" class="notif-badge" style="display:none;">0</span>
+            </button>
+            <button class="menu-btn" data-view-target="admin" onclick="navigateTo('admin')" data-role-min="admin">Administration</button>
           </div>
           <div class="menu-divider"></div>
           <div class="menu-list menu-footer">
-            <button class="menu-btn" data-view-target="profile" onclick="navigateTo('profile')">Profil boutique</button>
+            <button class="menu-btn" data-view-target="profile" onclick="navigateTo('profile')" data-role-min="admin">Profil boutique</button>
             <button class="menu-btn btn-danger" onclick="logout()">Se deconnecter</button>
           </div>
         </aside>
@@ -354,6 +407,7 @@
               <div>
                 <h1 id="shopTitle">REDESTOCK</h1>
                 <p id="shopSubtitle">Dashboard boutique</p>
+                <p id="roleBadge" class="muted"></p>
               </div>
             </div>
             <div class="grid kpis">
@@ -373,8 +427,8 @@
 
           <section class="view-section" data-view="products">
             <div class="grid two">
-              <div class="card">
-                <h3>Ajouter produit</h3>
+              <div class="card" id="productFormCard" data-role-min="admin">
+                <h3 id="productFormTitle">Ajouter produit</h3>
                 <div class="row3">
                   <label>Nom<input id="pName" /></label>
                   <label>SKU<input id="pSku" /></label>
@@ -391,7 +445,13 @@
                   </label>
                   <label>Prix unitaire FCFA<input id="pPrice" type="number" min="0" value="0" /></label>
                 </div>
-                <button onclick="addProduct()" style="margin-top:8px;">Enregistrer produit</button>
+                <label style="margin-top:8px;">Mot de passe de reconfirmation
+                  <input id="pApprovalPassword" type="password" placeholder="Requis seulement pour supprimer" />
+                </label>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                  <button id="productSubmitBtn" type="button" onclick="saveProduct()">Enregistrer produit</button>
+                  <button id="productCancelBtn" type="button" class="btn-small" onclick="resetProductForm()" style="display:none;">Annuler modification</button>
+                </div>
               </div>
               <div class="card">
                 <h3 style="display:flex;justify-content:space-between;align-items:center">Produits <button class="btn-small" onclick="loadProducts()">Actualiser</button></h3>
@@ -400,7 +460,7 @@
             </div>
           </section>
 
-          <section class="view-section" data-view="stock">
+          <section class="view-section" data-view="stock" data-role-min="admin">
             <div class="grid two">
               <div class="card">
                 <h3>Mouvement stock</h3>
@@ -507,7 +567,7 @@
             </div>
           </section>
 
-          <section class="view-section" data-view="profile">
+          <section class="view-section" data-view="profile" data-role-min="admin">
             <div class="card">
               <h3>Identite boutique (logo + signature)</h3>
               <div class="row2">
@@ -526,11 +586,51 @@
             </div>
           </section>
 
-          <section class="view-section" data-view="admin">
+          <section class="view-section" data-view="admin" data-role-min="admin">
             <div class="card">
               <h3>Administration</h3>
               <p class="muted">Efface uniquement les donnees de ta boutique connectee.</p>
+              <label>Mot de passe de reconfirmation<input id="adminApprovalPassword" type="password" placeholder="Requis avant suppression totale" /></label>
               <button class="btn-danger" onclick="resetAllData()">Effacer toutes les donnees</button>
+            </div>
+            <div class="card">
+              <h3>Utilisateurs internes</h3>
+              <div class="row3">
+                <label>Nom complet<input id="userDisplayName" placeholder="Ex: Afi" /></label>
+                <label>Login<input id="userLogin" placeholder="afi" /></label>
+                <label>Role
+                  <select id="userRole">
+                    <option value="cashier">Caissier</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+              </div>
+              <div class="row2" style="margin-top:8px;">
+                <label>Mot de passe employe<input id="userPassword" type="password" placeholder="4 caracteres minimum" /></label>
+                <label>Mot de passe de reconfirmation<input id="userApprovalPassword" type="password" placeholder="Requis pour supprimer un utilisateur" /></label>
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+                <button type="button" onclick="createUser()">Ajouter utilisateur</button>
+                <button type="button" class="btn-small" onclick="loadUsers()">Actualiser la liste</button>
+              </div>
+              <table style="margin-top:10px;">
+                <thead><tr><th>ID</th><th>Nom</th><th>Login</th><th>Role</th><th>Action</th></tr></thead>
+                <tbody id="users"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="view-section" data-view="notifications" data-role-min="admin">
+            <div class="card">
+              <h3 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                Notifications responsables
+                <span class="toolbar">
+                  <button class="btn-small" onclick="markNotificationsRead()">Tout marquer comme lu</button>
+                  <button class="btn-small" onclick="loadNotifications()">Actualiser</button>
+                </span>
+              </h3>
+              <p class="muted">Les paiements, ventes a credit, mouvements de stock et modifications sensibles apparaissent ici.</p>
+              <div id="notifications" class="notification-list"></div>
             </div>
           </section>
 
@@ -545,12 +645,17 @@ const API = '';
 let token = localStorage.getItem('redestock_token') || '';
 let productsCache = [];
 let debtsCache = [];
+let usersCache = [];
+let notificationsCache = [];
 let lastReceipt = null;
 let me = null;
+let editingProductId = null;
 let debtsPage = 1;
+let sensitiveApprovalToken = sessionStorage.getItem('redestock_sensitive_approval') || '';
+let sensitiveApprovalExpiresAt = Number(sessionStorage.getItem('redestock_sensitive_approval_exp') || 0);
 const DEBTS_PAGE_SIZE = 10;
 const LAST_VIEW_KEY = 'redestock_last_view';
-const KNOWN_VIEWS = new Set(['dashboard', 'products', 'stock', 'debts', 'followups', 'profile', 'admin']);
+const KNOWN_VIEWS = new Set(['dashboard', 'products', 'stock', 'debts', 'followups', 'profile', 'notifications', 'admin']);
 
 function money(n) { return Number(n || 0).toLocaleString('fr-FR'); }
 
@@ -572,6 +677,71 @@ function isEmail(v){
 function parseIntSafe(v, fallback = 0){
   const n = Number(v);
   return Number.isFinite(n) ? Math.trunc(n) : fallback;
+}
+
+function getPasswordValue(inputId){
+  return String(document.getElementById(inputId)?.value || '').trim();
+}
+
+function requirePassword(inputId, label = 'Mot de passe requis.'){
+  const value = getPasswordValue(inputId);
+  if (!value) throw new Error(label);
+  return value;
+}
+
+function hasRole(...roles){
+  return roles.includes(String(me?.role || ''));
+}
+
+function roleRank(role){
+  if (role === 'owner') return 3;
+  if (role === 'admin') return 2;
+  return 1;
+}
+
+function applyRoleVisibility(){
+  const currentRank = roleRank(me?.role || 'cashier');
+  document.querySelectorAll('[data-role-min]').forEach(el => {
+    const minRole = el.dataset.roleMin || 'cashier';
+    el.style.display = currentRank >= roleRank(minRole) ? '' : 'none';
+  });
+}
+
+function clearSensitiveInput(inputId){
+  const el = document.getElementById(inputId);
+  if (el) el.value = '';
+}
+
+function saveSensitiveApproval(tokenValue, expiresIn){
+  sensitiveApprovalToken = tokenValue || '';
+  sensitiveApprovalExpiresAt = Date.now() + Math.max(0, Number(expiresIn || 0)) * 1000;
+  sessionStorage.setItem('redestock_sensitive_approval', sensitiveApprovalToken);
+  sessionStorage.setItem('redestock_sensitive_approval_exp', String(sensitiveApprovalExpiresAt));
+}
+
+function clearSensitiveApproval(){
+  sensitiveApprovalToken = '';
+  sensitiveApprovalExpiresAt = 0;
+  sessionStorage.removeItem('redestock_sensitive_approval');
+  sessionStorage.removeItem('redestock_sensitive_approval_exp');
+}
+
+function isSensitiveApprovalValid(){
+  return Boolean(sensitiveApprovalToken) && sensitiveApprovalExpiresAt > Date.now();
+}
+
+async function ensureSensitiveApproval(inputId){
+  if (isSensitiveApprovalValid()) {
+    return { 'X-Sensitive-Approval': sensitiveApprovalToken };
+  }
+  const password = requirePassword(inputId, 'Mot de passe de reconfirmation requis.');
+  const out = await req('/api/auth/sensitive-approval', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  }, true);
+  saveSensitiveApproval(out.approval_token, out.expires_in);
+  clearSensitiveInput(inputId);
+  return { 'X-Sensitive-Approval': sensitiveApprovalToken };
 }
 
 async function req(path, options = {}, auth = false) {
@@ -606,7 +776,11 @@ function normalizeView(view){
 }
 
 function navigateTo(view){
-  const safeView = normalizeView(view);
+  let safeView = normalizeView(view);
+  const targetSection = document.querySelector(`.view-section[data-view="${safeView}"]`);
+  if (targetSection && targetSection.dataset.roleMin && roleRank(me?.role || 'cashier') < roleRank(targetSection.dataset.roleMin)) {
+    safeView = 'dashboard';
+  }
   document.querySelectorAll('.view-section').forEach(section => {
     section.classList.toggle('active', section.dataset.view === safeView);
   });
@@ -638,6 +812,7 @@ async function signup(){
     const out = await req('/api/auth/signup', { method:'POST', body: JSON.stringify(payload) });
     token = out.access_token;
     localStorage.setItem('redestock_token', token);
+    clearSensitiveApproval();
     await bootstrapApp('dashboard');
   } catch (e) { setAuthStatus(`Erreur inscription: ${e.message}`, true); }
 }
@@ -653,13 +828,33 @@ async function login(){
     const out = await req('/api/auth/login', { method:'POST', body: JSON.stringify(payload) });
     token = out.access_token;
     localStorage.setItem('redestock_token', token);
+    clearSensitiveApproval();
     await bootstrapApp('dashboard');
   } catch (e) { setAuthStatus(`Erreur connexion: ${e.message}`, true); }
+}
+
+async function staffLogin(){
+  try {
+    const payload = {
+      shop_email: document.getElementById('staffShopEmail').value.trim(),
+      login: document.getElementById('staffLogin').value.trim(),
+      password: document.getElementById('staffPassword').value,
+    };
+    if (!isEmail(payload.shop_email)) { setAuthStatus('Email boutique invalide.', true); return; }
+    if (!payload.login || payload.login.length < 2) { setAuthStatus('Login employe invalide.', true); return; }
+    if (!payload.password) { setAuthStatus('Mot de passe employe obligatoire.', true); return; }
+    const out = await req('/api/auth/staff/login', { method:'POST', body: JSON.stringify(payload) });
+    token = out.access_token;
+    localStorage.setItem('redestock_token', token);
+    clearSensitiveApproval();
+    await bootstrapApp('dashboard');
+  } catch (e) { setAuthStatus(`Erreur connexion employe: ${e.message}`, true); }
 }
 
 function logout(){
   token = '';
   me = null;
+  clearSensitiveApproval();
   localStorage.removeItem('redestock_token');
   showAuth();
   setAuthStatus('Session fermee.');
@@ -670,9 +865,11 @@ async function bootstrapApp(preferredView = ''){
     me = await req('/api/auth/me', {}, true);
     showApp();
     const targetView = normalizeView(preferredView || localStorage.getItem(LAST_VIEW_KEY) || 'dashboard');
+    applyRoleVisibility();
     navigateTo(targetView);
     document.getElementById('shopTitle').textContent = me.shop_name || 'REDESTOCK';
     document.getElementById('shopSubtitle').textContent = `${me.email}`;
+    document.getElementById('roleBadge').textContent = `Session: ${me.actor_name || '-'} (${me.role || 'cashier'})`;
 
     document.getElementById('profileShopName').value = me.shop_name || '';
     document.getElementById('profileShopPhone').value = me.shop_phone || '';
@@ -682,8 +879,13 @@ async function bootstrapApp(preferredView = ''){
     document.getElementById('signaturePreview').src = me.signature_url || '';
 
     await loadAll();
+    if (hasRole('owner', 'admin')) {
+      await loadUsers();
+      await loadNotifications();
+    }
   } catch (e) {
     token = '';
+    clearSensitiveApproval();
     localStorage.removeItem('redestock_token');
     showAuth();
     setAuthStatus('Reconnecte-toi pour acceder au site.', true);
@@ -731,8 +933,41 @@ async function refreshSummary(){
   document.getElementById('kCollected30d').textContent = money(data.collected_30d || 0);
 }
 
-async function addProduct(){
+function resetProductForm(){
+  editingProductId = null;
+  document.getElementById('productFormTitle').textContent = 'Ajouter produit';
+  document.getElementById('productSubmitBtn').textContent = 'Enregistrer produit';
+  document.getElementById('productCancelBtn').style.display = 'none';
+  document.getElementById('pName').value = '';
+  document.getElementById('pSku').value = '';
+  document.getElementById('pStock').value = '0';
+  document.getElementById('pMin').value = '5';
+  document.getElementById('pUnit').value = 'piece';
+  document.getElementById('pPrice').value = '0';
+}
+
+function startEditProduct(productId){
+  const product = productsCache.find(p => Number(p.id) === Number(productId));
+  if (!product) {
+    setAppStatus('Produit introuvable.', true);
+    return;
+  }
+  editingProductId = product.id;
+  document.getElementById('productFormTitle').textContent = `Modifier produit #${product.id}`;
+  document.getElementById('productSubmitBtn').textContent = 'Enregistrer modifications';
+  document.getElementById('productCancelBtn').style.display = 'inline-block';
+  document.getElementById('pName').value = product.name || '';
+  document.getElementById('pSku').value = product.sku || '';
+  document.getElementById('pStock').value = String(product.stock_qty || 0);
+  document.getElementById('pMin').value = String(product.min_qty || 0);
+  document.getElementById('pUnit').value = product.unit || 'piece';
+  document.getElementById('pPrice').value = String(product.sale_price || 0);
+  document.querySelector('[data-view="products"] .card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function saveProduct(){
   try {
+    if (!hasRole('owner', 'admin')) throw new Error('Action reservee a un admin ou au proprietaire.');
     const name = document.getElementById('pName').value.trim();
     const sku = document.getElementById('pSku').value.trim();
     const stockQty = parseIntSafe(document.getElementById('pStock').value, -1);
@@ -741,8 +976,9 @@ async function addProduct(){
     if (!name || name.length < 2) { setAppStatus('Nom produit obligatoire (2 caracteres min).', true); return; }
     if (!sku || sku.length < 2) { setAppStatus('SKU obligatoire (2 caracteres min).', true); return; }
     if (stockQty < 0 || minQty < 0 || salePrice < 0) { setAppStatus('Stock, seuil et prix doivent etre >= 0.', true); return; }
-    await req('/api/products', {
-      method:'POST',
+    const isEdit = Boolean(editingProductId);
+    await req(isEdit ? `/api/products/${editingProductId}` : '/api/products', {
+      method: isEdit ? 'PUT' : 'POST',
       body: JSON.stringify({
         name,
         sku,
@@ -752,7 +988,8 @@ async function addProduct(){
         sale_price: salePrice,
       }),
     }, true);
-    setAppStatus('Produit enregistre.');
+    resetProductForm();
+    setAppStatus(isEdit ? 'Produit modifie.' : 'Produit enregistre.');
     await loadAll();
   } catch (e) { setAppStatus(`Erreur produit: ${e.message}`, true); }
 }
@@ -760,23 +997,31 @@ async function addProduct(){
 async function deleteProduct(id, name){
   if (!confirm(`Supprimer le produit "${name}" ?`)) return;
   try {
-    await req(`/api/products/${id}`, { method: 'DELETE' }, true);
+    if (!hasRole('owner', 'admin')) throw new Error('Action reservee a un admin ou au proprietaire.');
+    const headers = await ensureSensitiveApproval('pApprovalPassword');
+    await req(`/api/products/${id}`, {
+      method: 'DELETE',
+      headers,
+    }, true);
     setAppStatus('Produit supprime.');
+    if (Number(editingProductId) === Number(id)) resetProductForm();
     await loadAll();
   } catch (e) { setAppStatus(`Erreur suppression: ${e.message}`, true); }
 }
 
 async function moveStock(){
   try {
+    if (!hasRole('owner', 'admin')) throw new Error('Action reservee a un admin ou au proprietaire.');
     const productId = parseIntSafe(document.getElementById('mProductId').value, 0);
     const qty = parseIntSafe(document.getElementById('mQty').value, 0);
+    const kind = document.getElementById('mKind').value;
     if (!productId) { setAppStatus('Choisis un produit.', true); return; }
     if (qty < 1) { setAppStatus('Quantite invalide (>= 1).', true); return; }
     await req('/api/stock/move', {
       method:'POST',
       body: JSON.stringify({
         product_id: productId,
-        kind: document.getElementById('mKind').value,
+        kind,
         qty,
         note: document.getElementById('mNote').value.trim(),
       }),
@@ -992,11 +1237,21 @@ async function loadProducts(){
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${p.id}</td><td>${p.name}<br><span class="muted">${p.sku}</span></td><td class="${p.is_low_stock ? 'warn' : ''}">${p.stock_qty}</td><td>${money(p.sale_price)}</td><td></td>`;
     const cell = tr.lastElementChild;
-    const btn = document.createElement('button');
-    btn.className = 'btn-small';
-    btn.textContent = 'Supprimer';
-    btn.onclick = () => deleteProduct(p.id, p.name);
-    cell.appendChild(btn);
+    if (hasRole('owner', 'admin')) {
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn-small';
+      editBtn.textContent = 'Modifier';
+      editBtn.onclick = () => startEditProduct(p.id);
+      cell.appendChild(editBtn);
+      const btn = document.createElement('button');
+      btn.className = 'btn-small';
+      btn.textContent = 'Supprimer';
+      btn.onclick = () => deleteProduct(p.id, p.name);
+      btn.style.marginLeft = '6px';
+      cell.appendChild(btn);
+    } else {
+      cell.textContent = 'Lecture seule';
+    }
     tbody.appendChild(tr);
 
     const o1 = document.createElement('option');
@@ -1010,6 +1265,112 @@ async function loadProducts(){
     dSel.appendChild(o2);
   });
   updateDebtAmountFromProduct();
+}
+
+async function loadUsers(){
+  if (!hasRole('owner', 'admin')) return;
+  const data = await req('/api/users', {}, true);
+  usersCache = data;
+  const tbody = document.getElementById('users');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="5">Aucun utilisateur interne.</td></tr>';
+    return;
+  }
+  data.forEach(user => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${user.id}</td><td>${user.display_name}</td><td>${user.login}</td><td>${user.role}</td><td></td>`;
+    const cell = tr.lastElementChild;
+    const btn = document.createElement('button');
+    btn.className = 'btn-small';
+    btn.textContent = 'Supprimer';
+    btn.onclick = () => deleteUser(user.id, user.display_name);
+    cell.appendChild(btn);
+    tbody.appendChild(tr);
+  });
+}
+
+function updateNotificationBadge(){
+  const badge = document.getElementById('notificationBadge');
+  if (!badge) return;
+  const unread = notificationsCache.filter(item => !item.is_read).length;
+  badge.textContent = String(unread);
+  badge.style.display = unread > 0 ? 'inline-flex' : 'none';
+}
+
+async function loadNotifications(){
+  if (!hasRole('owner', 'admin')) return;
+  const data = await req('/api/notifications?limit=40', {}, true);
+  notificationsCache = data;
+  updateNotificationBadge();
+
+  const box = document.getElementById('notifications');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!data.length) {
+    box.innerHTML = '<p class="muted">Aucune notification.</p>';
+    return;
+  }
+
+  data.forEach(item => {
+    const div = document.createElement('div');
+    div.className = `notification-item ${item.is_read ? '' : 'unread'}`;
+    const created = item.created_at ? new Date(item.created_at).toLocaleString('fr-FR') : '-';
+    div.innerHTML = `
+      <div class="notification-meta">
+        <span>${created}</span>
+        <span>${item.actor_name || '-'}</span>
+        <span>${item.actor_role || '-'}</span>
+        <span class="severity-${item.severity || 'info'}">${item.category || 'info'}</span>
+      </div>
+      <div class="notification-title">${item.title}</div>
+      <div>${item.message}</div>
+    `;
+    box.appendChild(div);
+  });
+}
+
+async function markNotificationsRead(){
+  try {
+    await req('/api/notifications/mark-read', { method: 'POST' }, true);
+    await loadNotifications();
+    setAppStatus('Notifications marquees comme lues.');
+  } catch (e) {
+    setAppStatus(`Erreur notifications: ${e.message}`, true);
+  }
+}
+
+async function createUser(){
+  try {
+    if (!hasRole('owner', 'admin')) throw new Error('Action reservee a un admin ou au proprietaire.');
+    const display_name = document.getElementById('userDisplayName').value.trim();
+    const login = document.getElementById('userLogin').value.trim();
+    const password = document.getElementById('userPassword').value;
+    const role = document.getElementById('userRole').value;
+    if (!display_name || display_name.length < 2) throw new Error('Nom utilisateur invalide.');
+    if (!login || login.length < 2) throw new Error('Login utilisateur invalide.');
+    if (!password || password.length < 4) throw new Error('Mot de passe utilisateur invalide.');
+    await req('/api/users', {
+      method: 'POST',
+      body: JSON.stringify({ display_name, login, password, role }),
+    }, true);
+    clearSensitiveInput('userPassword');
+    document.getElementById('userDisplayName').value = '';
+    document.getElementById('userLogin').value = '';
+    setAppStatus('Utilisateur interne cree.');
+    await loadUsers();
+  } catch (e) { setAppStatus(`Erreur utilisateur: ${e.message}`, true); }
+}
+
+async function deleteUser(userId, displayName){
+  if (!confirm(`Supprimer l'utilisateur "${displayName}" ?`)) return;
+  try {
+    const headers = await ensureSensitiveApproval('userApprovalPassword');
+    await req(`/api/users/${userId}`, { method: 'DELETE', headers }, true);
+    setAppStatus('Utilisateur supprime.');
+    await loadUsers();
+  } catch (e) { setAppStatus(`Erreur suppression utilisateur: ${e.message}`, true); }
 }
 
 async function loadDebts(){
@@ -1176,24 +1537,36 @@ async function resetAllData(){
   const c = prompt('Tape RESET pour confirmer:');
   if (c !== 'RESET') { setAppStatus('Effacement annule.'); return; }
   try {
-    await req('/api/admin/reset-data?confirm=RESET', { method:'POST' }, true);
+    if (!hasRole('owner', 'admin')) throw new Error('Action reservee a un admin ou au proprietaire.');
+    const headers = await ensureSensitiveApproval('adminApprovalPassword');
+    await req('/api/admin/reset-data?confirm=RESET', {
+      method:'POST',
+      headers,
+    }, true);
     setAppStatus('Donnees boutique effacees.');
     document.getElementById('receiptBox').style.display = 'none';
+    resetProductForm();
     await loadAll();
   } catch (e) { setAppStatus(`Erreur reset: ${e.message}`, true); }
 }
 
 async function loadAll(){
-  await Promise.all([
+  const tasks = [
     refreshSummary(),
     loadProducts(),
     loadDebts(),
     loadAlerts(),
     loadFollowups(),
     loadMovements(),
-  ]);
+  ];
+  if (hasRole('owner', 'admin')) {
+    tasks.push(loadUsers());
+    tasks.push(loadNotifications());
+  }
+  await Promise.all(tasks);
 }
 
+resetProductForm();
 if (token) bootstrapApp();
 else showAuth();
 </script>

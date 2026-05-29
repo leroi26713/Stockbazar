@@ -47,6 +47,36 @@ def ensure_sqlite_columns() -> None:
                 session.commit()
 
 
+def ensure_sqlite_indexes() -> None:
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+
+    statements = [
+        "CREATE INDEX IF NOT EXISTS ix_shop_users_shop_login ON shop_users (shop_id, login)",
+        "CREATE INDEX IF NOT EXISTS ix_shop_users_shop_active ON shop_users (shop_id, is_active)",
+        "CREATE INDEX IF NOT EXISTS ix_products_shop_sku ON products (shop_id, sku)",
+        "CREATE INDEX IF NOT EXISTS ix_products_shop_id_desc ON products (shop_id, id)",
+        "CREATE INDEX IF NOT EXISTS ix_products_shop_low_stock ON products (shop_id, stock_qty, min_qty)",
+        "CREATE INDEX IF NOT EXISTS ix_stock_movements_shop_id_desc ON stock_movements (shop_id, id)",
+        "CREATE INDEX IF NOT EXISTS ix_stock_movements_shop_product ON stock_movements (shop_id, product_id)",
+        "CREATE INDEX IF NOT EXISTS ix_customer_debts_shop_id_desc ON customer_debts (shop_id, id)",
+        "CREATE INDEX IF NOT EXISTS ix_customer_debts_shop_product ON customer_debts (shop_id, product_id)",
+        "CREATE INDEX IF NOT EXISTS ix_customer_debts_shop_due ON customer_debts (shop_id, due_date)",
+        "CREATE INDEX IF NOT EXISTS ix_customer_debts_shop_customer ON customer_debts (shop_id, customer_name)",
+        "CREATE INDEX IF NOT EXISTS ix_debt_payment_logs_shop_id_desc ON debt_payment_logs (shop_id, id)",
+        "CREATE INDEX IF NOT EXISTS ix_debt_payment_logs_shop_debt ON debt_payment_logs (shop_id, debt_id)",
+        "CREATE INDEX IF NOT EXISTS ix_debt_payment_logs_shop_created ON debt_payment_logs (shop_id, created_at)",
+        "CREATE INDEX IF NOT EXISTS ix_shop_notifications_shop_read_id ON shop_notifications (shop_id, is_read, id)",
+        "CREATE INDEX IF NOT EXISTS ix_shop_notifications_shop_id_desc ON shop_notifications (shop_id, id)",
+    ]
+
+    with Session(engine) as session:
+        for statement in statements:
+            session.execute(text(statement))
+        session.execute(text("PRAGMA optimize"))
+        session.commit()
+
+
 def normalize_legacy_debts() -> None:
     with Session(engine) as session:
         debts = session.scalars(select(CustomerDebt)).all()
@@ -70,4 +100,5 @@ def bootstrap_app() -> None:
         Base.metadata.create_all(engine)
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     ensure_sqlite_columns()
+    ensure_sqlite_indexes()
     normalize_legacy_debts()

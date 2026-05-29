@@ -8,19 +8,53 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import quote
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.bootstrap import bootstrap_app
-from app.config import APP_ROOT, CORS_ALLOW_ORIGINS, ENABLE_ADMIN_RESET, FRONTEND_FILE, TOKEN_TTL_HOURS, UPLOADS_DIR
+from app.config import (
+    APP_ROOT,
+    CORS_ALLOW_ORIGINS,
+    ENABLE_ADMIN_RESET,
+    FRONTEND_FILE,
+    SENSITIVE_STOCK_OUT_QTY,
+    TOKEN_TTL_HOURS,
+    UPLOADS_DIR,
+)
 from app.database import engine
-from app.models import CustomerDebt, DebtPaymentLog, Product, ShopAccount, StockMovement
-from app.schemas import AuthOut, DebtCreate, DebtPayment, LoginPayload, ProductCreate, ProductOut, SignupPayload, StockMoveCreate
-from app.security import create_token, current_shop, hash_password, verify_password
+from app.models import CustomerDebt, DebtPaymentLog, Product, ShopAccount, ShopNotification, ShopUser, StockMovement
+from app.schemas import (
+    AuthOut,
+    DebtCreate,
+    DebtPayment,
+    LoginPayload,
+    NotificationOut,
+    ProductCreate,
+    ProductOut,
+    ProductUpdate,
+    SensitiveApprovalPayload,
+    ShopUserCreate,
+    ShopUserOut,
+    SignupPayload,
+    StaffLoginPayload,
+    StockMoveCreate,
+)
+from app.security import (
+    AuthContext,
+    create_sensitive_approval,
+    create_token,
+    current_auth,
+    current_shop,
+    hash_password,
+    require_roles,
+    require_sensitive_approval,
+    verify_actor_password,
+    verify_password,
+)
 from app.utils import build_receipt_number, normalize_method, normalize_phone, parse_due_date, save_upload
 
 
@@ -28,6 +62,28 @@ bootstrap_app()
 
 app = FastAPI(title="REDESTOCK API", version="0.4.0")
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+
+
+def _notify(
+    session: Session,
+    auth: AuthContext,
+    *,
+    category: str,
+    title: str,
+    message: str,
+    severity: Literal["info", "warning", "danger"] = "info",
+) -> None:
+    session.add(
+        ShopNotification(
+            shop_id=auth.shop.id,
+            actor_name=auth.actor_name,
+            actor_role=auth.role,
+            category=category,
+            severity=severity,
+            title=title[:160],
+            message=message[:500],
+        )
+    )
 
 origins = [x.strip() for x in CORS_ALLOW_ORIGINS.split(",") if x.strip()]
 if not origins:
@@ -68,7 +124,14 @@ def auth_signup(payload: SignupPayload):
         session.commit()
         session.refresh(shop)
 
-    token = create_token(shop.id, shop.email)
+    token = create_token(
+        shop.id,
+        shop.email,
+        role="owner",
+        actor_type="shop",
+        actor_id=shop.id,
+        actor_name=shop.shop_name,
+    )
     return AuthOut(
         access_token=token,
         token_type="bearer",
@@ -76,6 +139,8 @@ def auth_signup(payload: SignupPayload):
         shop_id=shop.id,
         email=shop.email,
         shop_name=shop.shop_name,
+        role="owner",
+        actor_name=shop.shop_name,
     )
 
 
@@ -87,7 +152,14 @@ def auth_login(payload: LoginPayload):
         if not shop or not verify_password(payload.password, shop.password_hash):
             raise HTTPException(status_code=401, detail="Email ou mot de passe invalide")
 
-    token = create_token(shop.id, shop.email)
+    token = create_token(
+        shop.id,
+        shop.email,
+        role="owner",
+        actor_type="shop",
+        actor_id=shop.id,
+        actor_name=shop.shop_name,
+    )
     return AuthOut(
         access_token=token,
         token_type="bearer",
@@ -95,11 +167,53 @@ def auth_login(payload: LoginPayload):
         shop_id=shop.id,
         email=shop.email,
         shop_name=shop.shop_name,
+        role="owner",
+        actor_name=shop.shop_name,
+    )
+
+
+@app.post("/api/auth/staff/login", response_model=AuthOut)
+def auth_staff_login(payload: StaffLoginPayload):
+    shop_email = payload.shop_email.strip().lower()
+    login = payload.login.strip().lower()
+    with Session(engine) as session:
+        shop = session.scalar(select(ShopAccount).where(ShopAccount.email == shop_email))
+        if not shop:
+            raise HTTPException(status_code=401, detail="Boutique ou identifiants invalides")
+
+        staff = session.scalar(
+            select(ShopUser).where(
+                ShopUser.shop_id == shop.id,
+                ShopUser.login == login,
+                ShopUser.is_active.is_(True),
+            )
+        )
+        if not staff or not verify_password(payload.password, staff.password_hash):
+            raise HTTPException(status_code=401, detail="Boutique ou identifiants invalides")
+
+    token = create_token(
+        shop.id,
+        shop.email,
+        role=staff.role,
+        actor_type="staff",
+        actor_id=staff.id,
+        actor_name=staff.display_name,
+    )
+    return AuthOut(
+        access_token=token,
+        token_type="bearer",
+        expires_in=TOKEN_TTL_HOURS * 3600,
+        shop_id=shop.id,
+        email=shop.email,
+        shop_name=shop.shop_name,
+        role=staff.role,
+        actor_name=staff.display_name,
     )
 
 
 @app.get("/api/auth/me")
-def auth_me(shop: ShopAccount = Depends(current_shop)):
+def auth_me(auth: AuthContext = Depends(current_auth)):
+    shop = auth.shop
     return {
         "shop_id": shop.id,
         "email": shop.email,
@@ -109,7 +223,130 @@ def auth_me(shop: ShopAccount = Depends(current_shop)):
         "cashier_name": shop.cashier_name,
         "logo_url": shop.logo_url,
         "signature_url": shop.signature_url,
+        "role": auth.role,
+        "actor_name": auth.actor_name,
+        "sensitive_stock_out_qty": SENSITIVE_STOCK_OUT_QTY,
     }
+
+
+@app.get("/api/notifications", response_model=list[NotificationOut])
+def list_notifications(
+    unread_only: bool = Query(default=False),
+    limit: int = Query(default=30, ge=1, le=100),
+    auth: AuthContext = Depends(current_auth),
+):
+    require_roles(auth, "owner", "admin")
+    filters = [ShopNotification.shop_id == auth.shop.id]
+    if unread_only:
+        filters.append(ShopNotification.is_read.is_(False))
+
+    with Session(engine) as session:
+        notifications = session.scalars(
+            select(ShopNotification).where(*filters).order_by(ShopNotification.id.desc()).limit(limit)
+        ).all()
+        return [
+            NotificationOut(
+                id=item.id,
+                actor_name=item.actor_name,
+                actor_role=item.actor_role,
+                category=item.category,
+                severity=item.severity,
+                title=item.title,
+                message=item.message,
+                is_read=item.is_read,
+                created_at=item.created_at.isoformat(),
+            )
+            for item in notifications
+        ]
+
+
+@app.post("/api/notifications/mark-read")
+def mark_notifications_read(auth: AuthContext = Depends(current_auth)):
+    require_roles(auth, "owner", "admin")
+    with Session(engine) as session:
+        rows = session.scalars(
+            select(ShopNotification).where(
+                ShopNotification.shop_id == auth.shop.id,
+                ShopNotification.is_read.is_(False),
+            )
+        ).all()
+        for item in rows:
+            item.is_read = True
+        session.commit()
+        return {"status": "ok", "marked": len(rows)}
+
+
+@app.post("/api/auth/sensitive-approval")
+def auth_sensitive_approval(payload: SensitiveApprovalPayload, auth: AuthContext = Depends(current_auth)):
+    require_roles(auth, "owner", "admin")
+    verify_actor_password(auth, payload.password)
+    token, expires_in = create_sensitive_approval(auth.shop.id, auth.actor_type, auth.actor_id, auth.role)
+    return {"approval_token": token, "expires_in": expires_in}
+
+
+@app.get("/api/users", response_model=list[ShopUserOut])
+def list_users(auth: AuthContext = Depends(current_auth)):
+    require_roles(auth, "owner", "admin")
+    with Session(engine) as session:
+        users = session.scalars(
+            select(ShopUser).where(ShopUser.shop_id == auth.shop.id).order_by(ShopUser.id.desc())
+        ).all()
+        return [
+            ShopUserOut(
+                id=user.id,
+                login=user.login,
+                display_name=user.display_name,
+                role=user.role,
+                is_active=user.is_active,
+            )
+            for user in users
+        ]
+
+
+@app.post("/api/users", response_model=ShopUserOut)
+def create_user(payload: ShopUserCreate, auth: AuthContext = Depends(current_auth)):
+    require_roles(auth, "owner", "admin")
+    login = payload.login.strip().lower()
+    display_name = payload.display_name.strip()
+    with Session(engine) as session:
+        exists = session.scalar(select(ShopUser).where(ShopUser.shop_id == auth.shop.id, ShopUser.login == login))
+        if exists:
+            raise HTTPException(status_code=409, detail="Login deja utilise")
+        user = ShopUser(
+            shop_id=auth.shop.id,
+            login=login,
+            display_name=display_name,
+            password_hash=hash_password(payload.password),
+            role=payload.role,
+            is_active=True,
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return ShopUserOut(
+            id=user.id,
+            login=user.login,
+            display_name=user.display_name,
+            role=user.role,
+            is_active=user.is_active,
+        )
+
+
+@app.delete("/api/users/{user_id}")
+def delete_user(
+    user_id: int,
+    approval_token: str | None = Header(default=None, alias="X-Sensitive-Approval"),
+    auth: AuthContext = Depends(current_auth),
+):
+    require_roles(auth, "owner", "admin")
+    require_sensitive_approval(auth, approval_token)
+    with Session(engine) as session:
+        user = session.scalar(select(ShopUser).where(ShopUser.id == user_id, ShopUser.shop_id == auth.shop.id))
+        if not user:
+            raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+        session.delete(user)
+        session.commit()
+        return {"status": "ok", "deleted_user_id": user_id}
 
 
 @app.put("/api/shop/profile")
@@ -120,8 +357,11 @@ def update_shop_profile(
     cashier_name: str = Form("Caissier"),
     logo: UploadFile | None = File(default=None),
     signature: UploadFile | None = File(default=None),
-    shop: ShopAccount = Depends(current_shop),
+    auth: AuthContext = Depends(current_auth),
 ):
+    require_roles(auth, "owner", "admin")
+    shop = auth.shop
+
     with Session(engine) as session:
         db_shop = session.get(ShopAccount, shop.id)
         if not db_shop:
@@ -138,6 +378,13 @@ def update_shop_profile(
         if signature is not None and signature.filename:
             db_shop.signature_url = save_upload(signature, "signature", db_shop.id)
 
+        _notify(
+            session,
+            auth,
+            category="profile",
+            title="Profil boutique modifie",
+            message=f"{auth.actor_name} a modifie les informations de la boutique.",
+        )
         session.commit()
         session.refresh(db_shop)
 
@@ -171,7 +418,9 @@ def list_products(shop: ShopAccount = Depends(current_shop)):
 
 
 @app.post("/api/products", response_model=ProductOut)
-def create_product(payload: ProductCreate, shop: ShopAccount = Depends(current_shop)):
+def create_product(payload: ProductCreate, auth: AuthContext = Depends(current_auth)):
+    require_roles(auth, "owner", "admin")
+    shop = auth.shop
     sku = payload.sku.strip().upper()
     with Session(engine) as session:
         exists = session.scalar(select(Product).where(Product.shop_id == shop.id, Product.sku == sku))
@@ -213,8 +462,83 @@ def create_product(payload: ProductCreate, shop: ShopAccount = Depends(current_s
         )
 
 
+@app.put("/api/products/{product_id}", response_model=ProductOut)
+def update_product(
+    product_id: int,
+    payload: ProductUpdate,
+    auth: AuthContext = Depends(current_auth),
+):
+    require_roles(auth, "owner", "admin")
+    shop = auth.shop
+
+    sku = payload.sku.strip().upper()
+    name = payload.name.strip()
+    unit = payload.unit.strip()
+    if len(name) < 2:
+        raise HTTPException(status_code=422, detail="Nom produit invalide")
+    if len(sku) < 2:
+        raise HTTPException(status_code=422, detail="SKU invalide")
+    if not unit:
+        raise HTTPException(status_code=422, detail="Unite invalide")
+
+    with Session(engine) as session:
+        product = session.scalar(select(Product).where(Product.id == product_id, Product.shop_id == shop.id))
+        if not product:
+            raise HTTPException(status_code=404, detail="Produit introuvable")
+
+        exists = session.scalar(
+            select(Product).where(
+                Product.shop_id == shop.id,
+                Product.sku == sku,
+                Product.id != product_id,
+            )
+        )
+        if exists:
+            raise HTTPException(status_code=409, detail="SKU deja utilise")
+
+        stock_delta = payload.stock_qty - product.stock_qty
+        product.name = name
+        product.sku = sku
+        product.stock_qty = payload.stock_qty
+        product.min_qty = payload.min_qty
+        product.unit = unit
+        product.sale_price = payload.sale_price
+
+        if stock_delta != 0:
+            session.add(
+                StockMovement(
+                    shop_id=shop.id,
+                    product_id=product.id,
+                    kind="in" if stock_delta > 0 else "out",
+                    qty=abs(stock_delta),
+                    note="Ajustement manuel via modification produit",
+                )
+            )
+
+        session.commit()
+        session.refresh(product)
+
+        return ProductOut(
+            id=product.id,
+            name=product.name,
+            sku=product.sku,
+            stock_qty=product.stock_qty,
+            min_qty=product.min_qty,
+            unit=product.unit,
+            sale_price=product.sale_price,
+        )
+
+
 @app.delete("/api/products/{product_id}")
-def delete_product(product_id: int, shop: ShopAccount = Depends(current_shop)):
+def delete_product(
+    product_id: int,
+    approval_token: str | None = Header(default=None, alias="X-Sensitive-Approval"),
+    auth: AuthContext = Depends(current_auth),
+):
+    require_roles(auth, "owner", "admin")
+    require_sensitive_approval(auth, approval_token)
+    shop = auth.shop
+
     with Session(engine) as session:
         product = session.scalar(select(Product).where(Product.id == product_id, Product.shop_id == shop.id))
         if not product:
@@ -229,21 +553,25 @@ def delete_product(product_id: int, shop: ShopAccount = Depends(current_shop)):
         if debt_count > 0:
             raise HTTPException(status_code=409, detail="Impossible de supprimer: produit lie a des dettes")
 
-        moves = session.scalars(
-            select(StockMovement).where(
+        session.execute(
+            delete(StockMovement).where(
                 StockMovement.shop_id == shop.id,
                 StockMovement.product_id == product_id,
             )
-        ).all()
-        for mv in moves:
-            session.delete(mv)
+        )
         session.delete(product)
         session.commit()
         return {"status": "ok", "deleted_product_id": product_id}
 
 
 @app.post("/api/stock/move")
-def create_stock_move(payload: StockMoveCreate, shop: ShopAccount = Depends(current_shop)):
+def create_stock_move(
+    payload: StockMoveCreate,
+    auth: AuthContext = Depends(current_auth),
+):
+    require_roles(auth, "owner", "admin")
+    shop = auth.shop
+
     with Session(engine) as session:
         product = session.scalar(select(Product).where(Product.id == payload.product_id, Product.shop_id == shop.id))
         if not product:
@@ -265,6 +593,16 @@ def create_stock_move(payload: StockMoveCreate, shop: ShopAccount = Depends(curr
             note=payload.note,
         )
         session.add(mv)
+        severity = "warning" if payload.kind == "out" and payload.qty >= SENSITIVE_STOCK_OUT_QTY else "info"
+        label = "sortie" if payload.kind == "out" else "entree"
+        _notify(
+            session,
+            auth,
+            category="stock",
+            severity=severity,
+            title=f"Mouvement de stock: {label}",
+            message=f"{auth.actor_name} a effectue une {label} de {payload.qty} sur {product.name}.",
+        )
         session.commit()
 
         return {
@@ -283,7 +621,16 @@ def list_stock_movements(limit: int = 50, shop: ShopAccount = Depends(current_sh
         rows = session.scalars(
             select(StockMovement).where(StockMovement.shop_id == shop.id).order_by(StockMovement.id.desc()).limit(limit)
         ).all()
-        product_map = {p.id: p.name for p in session.scalars(select(Product).where(Product.shop_id == shop.id)).all()}
+        product_ids = {r.product_id for r in rows}
+        if product_ids:
+            product_map = {
+                p.id: p.name
+                for p in session.scalars(
+                    select(Product).where(Product.shop_id == shop.id, Product.id.in_(product_ids))
+                ).all()
+            }
+        else:
+            product_map = {}
         return [
             {
                 "id": r.id,
@@ -322,7 +669,12 @@ def low_stock_alerts(shop: ShopAccount = Depends(current_shop)):
 
 
 @app.post("/api/debts")
-def create_debt(payload: DebtCreate, shop: ShopAccount = Depends(current_shop)):
+def create_debt(
+    payload: DebtCreate,
+    auth: AuthContext = Depends(current_auth),
+):
+    require_roles(auth, "owner", "admin", "cashier")
+    shop = auth.shop
     due_date = parse_due_date(payload.due_date)
 
     with Session(engine) as session:
@@ -361,6 +713,17 @@ def create_debt(payload: DebtCreate, shop: ShopAccount = Depends(current_shop)):
             note=payload.note.strip(),
         )
         session.add(debt)
+        _notify(
+            session,
+            auth,
+            category="debt",
+            severity="warning",
+            title="Vente a credit creee",
+            message=(
+                f"{auth.actor_name} a cree une dette de {amount_total} FCFA pour "
+                f"{debt.customer_name} ({payload.quantity} x {product.name})."
+            ),
+        )
         session.commit()
         session.refresh(debt)
 
@@ -379,13 +742,22 @@ def create_debt(payload: DebtCreate, shop: ShopAccount = Depends(current_shop)):
 
 
 @app.post("/api/debts/{debt_id}/pay")
-def pay_debt(debt_id: int, payload: DebtPayment, shop: ShopAccount = Depends(current_shop)):
+def pay_debt(
+    debt_id: int,
+    payload: DebtPayment,
+    auth: AuthContext = Depends(current_auth),
+):
+    require_roles(auth, "owner", "admin", "cashier")
+    shop = auth.shop
+
     with Session(engine) as session:
         debt = session.scalar(select(CustomerDebt).where(CustomerDebt.id == debt_id, CustomerDebt.shop_id == shop.id))
         if not debt:
             raise HTTPException(status_code=404, detail="Dette introuvable")
 
         due_before = debt.amount_total - debt.amount_paid
+        if due_before <= 0:
+            raise HTTPException(status_code=400, detail="Cette dette est deja soldee")
         if payload.amount > due_before:
             raise HTTPException(status_code=400, detail=f"Montant superieur au solde ({due_before})")
 
@@ -398,6 +770,16 @@ def pay_debt(debt_id: int, payload: DebtPayment, shop: ShopAccount = Depends(cur
             note=payload.note,
         )
         session.add(log)
+        _notify(
+            session,
+            auth,
+            category="money",
+            title="Paiement encaisse",
+            message=(
+                f"{auth.actor_name} a encaisse {payload.amount} FCFA pour "
+                f"{debt.customer_name} via {normalize_method(payload.method)}."
+            ),
+        )
         session.commit()
         session.refresh(log)
 
@@ -633,12 +1015,18 @@ def debt_followups(
 
     today = date.today()
     with Session(engine) as session:
-        rows = session.scalars(select(CustomerDebt).where(CustomerDebt.shop_id == shop.id).order_by(CustomerDebt.id.desc())).all()
+        filters = [CustomerDebt.shop_id == shop.id, CustomerDebt.amount_total > CustomerDebt.amount_paid]
+        if status == "overdue":
+            filters.append(CustomerDebt.due_date != "")
+            filters.append(CustomerDebt.due_date < today.isoformat())
+        else:
+            filters.append(or_(CustomerDebt.due_date == "", CustomerDebt.due_date >= today.isoformat()))
+        rows = session.scalars(
+            select(CustomerDebt).where(*filters).order_by(CustomerDebt.id.desc()).limit(limit)
+        ).all()
         out = []
         for d in rows:
             amount_due = d.amount_total - d.amount_paid
-            if amount_due <= 0:
-                continue
 
             overdue = False
             if d.due_date:
@@ -681,7 +1069,9 @@ def debt_followups(
                     "whatsapp_link": wa_link,
                 }
             )
-        return out[:limit]
+            if len(out) >= limit:
+                break
+        return out
 
 
 @app.get("/api/summary")
@@ -700,16 +1090,17 @@ def summary(shop: ShopAccount = Depends(current_shop)):
             or 0
         )
 
-        debt_rows = session.scalars(select(CustomerDebt).where(CustomerDebt.shop_id == shop.id)).all()
-        overdue = 0
-        for d in debt_rows:
-            due_amount = d.amount_total - d.amount_paid
-            if d.due_date and due_amount > 0:
-                try:
-                    if date.fromisoformat(d.due_date) < today:
-                        overdue += 1
-                except ValueError:
-                    pass
+        overdue = (
+            session.scalar(
+                select(func.count(CustomerDebt.id)).where(
+                    CustomerDebt.shop_id == shop.id,
+                    CustomerDebt.amount_total > CustomerDebt.amount_paid,
+                    CustomerDebt.due_date != "",
+                    CustomerDebt.due_date < today.isoformat(),
+                )
+            )
+            or 0
+        )
 
         low_stock = (
             session.scalar(select(func.count(Product.id)).where(Product.shop_id == shop.id, Product.stock_qty <= Product.min_qty))
@@ -752,11 +1143,18 @@ def summary(shop: ShopAccount = Depends(current_shop)):
 
 
 @app.post("/api/admin/reset-data")
-def reset_data(confirm: str = Query(default=""), shop: ShopAccount = Depends(current_shop)):
+def reset_data(
+    confirm: str = Query(default=""),
+    approval_token: str | None = Header(default=None, alias="X-Sensitive-Approval"),
+    auth: AuthContext = Depends(current_auth),
+):
+    require_roles(auth, "owner", "admin")
     if not ENABLE_ADMIN_RESET:
         raise HTTPException(status_code=403, detail="Reset admin desactive")
     if confirm != "RESET":
         raise HTTPException(status_code=400, detail="Confirmation requise: confirm=RESET")
+    require_sensitive_approval(auth, approval_token)
+    shop = auth.shop
 
     with Session(engine) as session:
         session.query(DebtPaymentLog).filter(DebtPaymentLog.shop_id == shop.id).delete()
